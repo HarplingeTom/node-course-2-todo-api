@@ -9,7 +9,6 @@ const { mongoose } = require('./db/mongoose');
 const { Todo } = require('./models/todo');
 const { User } = require('./models/user');
 const { authenticate } = require('./middleware/authenticate');
-const bcrypt = require('bcryptjs');
 
 const app = express();
 const port = process.env.PORT;

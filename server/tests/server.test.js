@@ -13,7 +13,6 @@ beforeEach(populateTodos);
 describe('POST /todos', () => {
   it('should create a new todo', done => {
     const text = 'Test todo text';
-
     request(app)
       .post('/todos')
       .send({ text })
@@ -25,7 +24,6 @@ describe('POST /todos', () => {
         if (err) {
           return done(err);
         }
-
         Todo.find({ text }).then((todos) => {
           expect(todos.length).toBe(1);
           expect(todos[ 0 ].text).toBe(text);
@@ -43,7 +41,6 @@ describe('POST /todos', () => {
         if (err) {
           return done(err);
         }
-
         Todo.find().then((todos) => {
           expect(todos.length).toBe(2);
           done();
@@ -95,7 +92,6 @@ describe('GET /todos/:id', () => {
 describe('DELETE /todos/:id', () => {
   it('should remove a todo', done => {
     const hexId = todos[ 1 ]._id.toHexString();
-
     request(app)
       .delete(`/todos/${hexId}`)
       .expect(200)
@@ -144,7 +140,6 @@ describe('PATCH /todos/:id', () => {
         if (err) {
           return done(err);
         }
-
         Todo.findById(hexId).then((todo) => {
           expect(todo.text).toBe(newText);
           expect(todo.completed).toBe(true);
@@ -201,7 +196,6 @@ describe('POST /users', () => {
   it('should create a user', (done) => {
     const email = 'apples@example.com';
     const password = '123abc!';
-
     request(app)
       .post('/users')
       .send({ email, password })
@@ -215,19 +209,17 @@ describe('POST /users', () => {
         if (err) {
           return done(err);
         }
-
         User.findOne({ email }).then((user) => {
           expect(user).toBeTruthy();
           expect(user.password).not.toBe(password);
           done();
-        });
+        }).catch((e) => done(e));
       });
   });
 
   it('should return validation errors if request invalid', (done) => {
     const email = 'adfoåahgfph';
     const password = '123';
-
     request(app)
       .post('/users')
       .send({ email, password })
@@ -238,11 +230,57 @@ describe('POST /users', () => {
   it('should not create user if email in use', (done) => {
     const email = users[ 1 ].email;
     const password = '123abcd';
-
     request(app)
       .post('/users')
       .send({ email, password })
       .expect(400)
       .end(done);
+  });
+});
+
+describe('POST /users/login', () => {
+  it('should login user and return auth token', (done) => {
+    request(app)
+      .post('/users/login')
+      .send({
+        email: users[ 1 ].email,
+        password: users[ 1 ].password
+      })
+      .expect(200)
+      .expect((res) => {
+        expect(res.headers[ 'x-auth' ]).toBeTruthy();
+      })
+      .end((err, res) => {
+        if (err) return done(err);
+
+        User.findById(users[ 1 ]._id).then((user) => {
+          expect(user.tokens[ 0 ]).toMatchObject({
+            access: 'auth',
+            token: res.headers[ 'x-auth' ]
+          });
+          done();
+        }).catch((e) => done(e));
+      });
+  });
+
+  it('should reject invalid login', (done) => {
+    request(app)
+      .post('/users/login')
+      .send({
+        email: users[ 1 ].email,
+        password: 'xxx'
+      })
+      .expect(400)
+      .expect((res) => {
+        expect(res.headers[ 'x-auth' ]).not.toBeTruthy();
+      })
+      .end((err, res) => {
+        if (err) return done(err);
+
+        User.findById(users[ 1 ]._id).then((user) => {
+          expect(user.tokens.length).toBe(0);
+          done();
+        }).catch((e) => done(e));
+      });
   });
 });
